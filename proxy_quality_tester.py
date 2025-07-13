@@ -4,6 +4,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+# URL to test proxies against (should be a real eBay item page that is always available)
+TEST_URL = "https://www.ebay.com/itm/365712943558"  # You can change this to any stable eBay item
+
 def get_local_ip():
     print("Retrieving local IP...")
     try:
@@ -27,25 +30,28 @@ def test_proxy_quality(proxy, local_ip, attempts=3):
         print(f"Attempt {i+1}/{attempts} for {proxy}...")
         start_time = time.time()
         try:
-            response = requests.get("http://ipinfo.io/ip", proxies=proxies, timeout=10)
+            # Test by fetching a real eBay item page and expect HTTP 200
+            response = requests.get(TEST_URL, proxies=proxies, timeout=10, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.ebay.com/'
+            })
             if response.status_code == 200:
-                proxied_ip = response.text.strip()
                 latency = time.time() - start_time
                 successes += 1
                 total_latency += latency
-                proxied_ips.add(proxied_ip)
-                print(f"Success on attempt {i+1}: Latency {latency:.2f}s, Proxied IP: {proxied_ip}")
+                print(f"Success on attempt {i+1}: Latency {latency:.2f}s, Status 200")
             else:
                 print(f"Failed on attempt {i+1}: Status code {response.status_code}")
         except requests.RequestException as e:
             print(f"Failed on attempt {i+1}: {str(e)}")
-        # Removed per-proxy sleep for speed
     return {
         "ip": ip,
         "port": port,
         "success_rate": successes / attempts if attempts > 0 else 0,
         "avg_latency": total_latency / successes if successes > 0 else float('inf'),
-        "anonymity": all(ip != local_ip for ip in proxied_ips) if local_ip and proxied_ips else False,
+        "anonymity": None,  # Not tested in this mode
         "quality_score": (successes / attempts) * (1 / (total_latency / successes + 1)) if successes > 0 else 0
     }
 

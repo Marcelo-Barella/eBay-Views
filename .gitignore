@@ -3,3 +3,4 @@
 proxies.txt
 *.log
 .cursor/
+pages/
